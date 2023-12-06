@@ -1,5 +1,4 @@
 ﻿using MassTransit;
-using MassTransit.Transports;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.ML;
@@ -28,7 +27,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             this.logRepository = logRepository;
             this.rateEngineRequestClient = rateEngineRequestClient;
             this.publishEndpoint = publishEndpoint;
-            this.apiBehaviorOptions = apiBehaviorOptions;
+            this.apiBehaviorOptions = apiBehaviorOptions;         
         }
 
         [HttpPost]
@@ -61,25 +60,65 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
             predictRequest.PostalCode = float.Parse(predictRequest.PostalCode.ToString().Substring(0, 3));
 
-            var modelFilePath = configuration.GetValue<string>("ModelFiles:Path");
 
             var context = new MLContext();
 
+            var modelFilePath = this.configuration.GetValue<string>("ModelFiles:Path");
+
+            if (!Directory.Exists(modelFilePath))
+            {
+                ModelState.AddModelError(nameof(PredictionUnit), $"Model file path could not be found: {modelFilePath}");
+
+                await LogMessageAsync(Level.ERROR, $"Model file path could not be found: {modelFilePath}");
+
+                var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+
+                return BadRequest(predictResult);
+            }
+
+            if (!System.IO.File.Exists($"{modelFilePath}{predictRequest.RateGroup}.zip"))
+            {
+                ModelState.AddModelError(nameof(PredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+
+                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+
+                var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+
+                return BadRequest(predictResult);
+            }
+
             var trainedModel = context.Model.Load($"{modelFilePath}{predictRequest.RateGroup}.zip", out DataViewSchema modelSchema);
 
+            if (trainedModel == null)
+            {
+                ModelState.AddModelError(nameof(PredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+
+                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+
+                var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+
+                return BadRequest(predictResult);
+            }
+
             var predictEngine = context.Model.CreatePredictionEngine<PredictionUnit, PredictResult>(trainedModel);
+
 
             var prediction = predictEngine.Predict(predictRequest);
 
             var predictionResult = new PredictResultDto();
 
-            predictionResult.PredictedService = prediction.PredictedLabelString;
+            double confidence = 0;
 
-            var entropy = -prediction.Score.Sum(p => p * Math.Log(p));
+            if (prediction != null)
+            {
+                predictionResult.PredictedService = prediction.PredictedLabelString;
 
-            double confidence = 100 - (entropy * 100);
+                var entropy = -prediction.Score.Sum(p => p * Math.Log(p));
 
-            predictionResult.Confidence = $"{(confidence).ToString("0.00")}%";
+                confidence = 100 - (entropy * 100);
+
+                predictionResult.Confidence = $"{(confidence).ToString("0.00")}%";
+            }
 
             if (confidence < Convert.ToDouble(configuration.GetValue<string>("ConfidenceThreshold")))
             {
@@ -99,19 +138,75 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             }
             else
             {
-                // TODO:
-                //          - Create 'TrainingData' class.
-                //              - 'TrainingData' class should include a 'RateGroup' property
-                //              - On service start, load the contents of each RSG CSV file into a 'TrainingData' object and add to LIST of a LIST of 'TraingData' objects
-                //                  - Before adding each object to the list, ensure that the 'RateGroup' property has a value equal to the CSV file name
-                //          - Add 'options' section to PredictRequestDto w/ 'estimateCost' and 'estimateTransitDays' boolean flags
-                //          - If either flag is true, iterate thru LIST of a LIST of 'TrainingData' objects until appropriate 'RateGroup' is found (matches PredictRequest 'RateGroup' value)
-                //              - If not, set 'EstimatedCost' and 'EstimatedTransitDays' in request to null
-                //          - Iterate thru LIST of 'TrainingData' objects (each record in RateGroup CSV) and take first record w/ matching postal prefix, winning service and weight
-                //          - Parse out 'TotalCost' value (if 'estimateCost' flag in PredictRequest is true)
-                //          - Parse out 'Commit.TransitDays' value (if 'estimateTransitDays' flag in PredictRequest is true)
-                //          - Modify PredictResultDto to include 'EstimatedCost' and 'EstimatedTransitDays'
-                //          - Map these values to the predictionResult object for return to the client
+                var estimateCost = predictRequestDto.EstimateCost == true ? true : false;
+
+                var estimateTransitDays = predictRequestDto.EstimateTransitDays == true ? true : false;
+
+                var datasetFilePath = this.configuration.GetValue<string>("DatasetFiles:Path");
+
+                if (estimateCost || estimateTransitDays)
+                {
+                    if (!string.IsNullOrEmpty(datasetFilePath))
+                    { 
+                        if (!Directory.Exists(datasetFilePath))
+                        {
+                            ModelState.AddModelError(nameof(PredictionUnit), $"Dataset file path could not be found: {datasetFilePath}");
+
+                            await LogMessageAsync(Level.ERROR, $"Dataset file path could not be found: {datasetFilePath}");
+
+                            var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+
+                            return BadRequest(predictResult);
+                        }
+
+                        var files = from file in Directory.EnumerateFiles(datasetFilePath) select file;
+
+                        var trainingData = new List<PredictionUnit>();
+
+                        foreach (var file in files)
+                        {
+                            var filename = Path.GetFileName(file).Split('.')[0];
+
+                            if (filename == predictRequest.RateGroup)
+                            {
+                                trainingData = System.IO.File.ReadAllLines(file)
+                                    .Skip(1)
+                                    .Select(v => PredictionUnit.FromCsv(v))
+                                    .ToList();
+
+                                break;
+                            }
+                        }
+
+                        if (trainingData != null)
+                        {
+                            var closestMatch = new PredictionUnit();
+
+                            if (prediction != null)
+                            {
+                                closestMatch = trainingData.Where(td => td.CarrierServiceName == prediction.PredictedLabelString
+                                && td.PostalCode.ToString() == predictRequest.PostalCode.ToString().Substring(0, 3)
+                                && td.RatedWeight == Math.Ceiling(predictRequest.RatedWeight)).FirstOrDefault();
+                            }
+
+                            if (closestMatch != null)
+                            {
+                                predictionResult.Detail.EstimatedCost = estimateCost
+                                    ? Convert.ToDecimal(closestMatch.TotalCost)
+                                    : 0;
+
+                                predictionResult.Detail.EstimatedTransitDays = estimateTransitDays
+                                    ? Convert.ToInt32(closestMatch.CommitTransitDays)
+                                    : 0;
+                            }
+                        }
+                        else
+                        {
+                            await LogMessageAsync(Level.WARNING, 
+                                $"No training data found when attempting to estimate cost and transit days.  Rate Group: {predictRequest.RateGroup}");
+                        }
+                    }
+                }
             }
 
             return Ok(predictionResult);

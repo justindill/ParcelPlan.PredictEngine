@@ -13,6 +13,8 @@ namespace ParcelPlan.PredictEngine.Service
             [Required] public Receiver Receiver { get; set; } = new();
             [Required] public List<string> RateType { get; set; } = new();
             [Required] public List<Package> Packages { get; set; } = new();
+            public bool EstimateCost { get; set; } = false;
+            public bool EstimateTransitDays { get; set; } = false;
         }
 
         public class Receiver

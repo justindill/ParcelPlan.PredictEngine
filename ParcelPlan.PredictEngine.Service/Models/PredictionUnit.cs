@@ -30,5 +30,26 @@ namespace ParcelPlan.PredictEngine.Service.Models
         public string SignatureRequired { get; set; }
         [LoadColumn(12)]
         public string AdultSignatureRequired { get; set; }
+
+        public static PredictionUnit FromCsv(string csvLine)
+        {
+            string[] values = csvLine.Split(',');
+            PredictionUnit predictionUnit = new PredictionUnit();
+            predictionUnit.Id = values[0];
+            predictionUnit.RateGroup = values[1];
+            predictionUnit.CarrierServiceName = values[2];
+            predictionUnit.PostalCode = float.Parse(values[3]);
+            predictionUnit.TotalCost = float.Parse(values[4]);
+            predictionUnit.RatedWeight = float.Parse(values[5]);
+            predictionUnit.RatedWeightUOM = values[6];
+            predictionUnit.CommitDeliveryDay = values[7];
+            predictionUnit.CommitDeliveryDate = values[8];
+            predictionUnit.CommitTransitDays = float.Parse(values[9]);
+            predictionUnit.Residential = values[10];
+            predictionUnit.SignatureRequired = values[11];
+            predictionUnit.AdultSignatureRequired = values[12];
+
+            return predictionUnit;
+        }
     }
 }
