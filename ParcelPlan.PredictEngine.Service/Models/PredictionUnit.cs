@@ -2,7 +2,7 @@
 
 namespace ParcelPlan.PredictEngine.Service.Models
 {
-    public class TrainingUnit
+    public class PredictionUnit
     {
         [LoadColumn(0)]
         public string Id { get; set; }

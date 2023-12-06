@@ -3,6 +3,10 @@ using ParcelPlan.Common.MongoDB;
 using ParcelPlan.Common;
 using ParcelPlan.Common.Settings;
 using ParcelPlan.PredictEngine.Service.Controllers;
+using MassTransit;
+using System.Reflection;
+using ParcelPlan.PredictEngine.Service.Consumers;
+using ParcelPlan.Common.MassTransit.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 var serviceSettings = new ServiceSettings();
@@ -17,7 +21,30 @@ serviceSettings = Configuration.GetSection(nameof(ServiceSettings)).Get<ServiceS
 
 builder.Services.AddMongo()
                 .AddMongoRepository<Log>("log");
-                //.AddMassTransitWithRabbitMq();
+//.AddMassTransitWithRabbitMq();
+
+builder.Services.AddMassTransit(configure =>
+{
+    var entryAssembly = Assembly.GetExecutingAssembly();
+
+    //configure.AddConsumers(entryAssembly);
+
+    configure.UsingRabbitMq((context, configurator) =>
+    {
+        var configuration = context.GetService<IConfiguration>();
+        var serviceSettings = configuration.GetSection(nameof(ServiceSettings)).Get<ServiceSettings>();
+        var rabbitMQSettings = configuration.GetSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>();
+
+        configurator.Host(rabbitMQSettings.Host);
+
+        configurator.ConfigureEndpoints(context, new KebabCaseEndpointNameFormatter(serviceSettings.ServiceName, false));
+
+        configurator.UseMessageRetry(retryConfigurator =>
+        {
+            retryConfigurator.Interval(3, TimeSpan.FromSeconds(5));
+        });
+    });
+});
 
 builder.Services.AddHttpClient<PredictController>();
 
