@@ -1,6 +1,6 @@
 ﻿namespace ParcelPlan.PredictEngine.Service.Entities
 {
-    public class RateResult
+    public class RateResultEntity
     {
         public Guid Id { get; set; }
         public string RateGroup { get; set; }

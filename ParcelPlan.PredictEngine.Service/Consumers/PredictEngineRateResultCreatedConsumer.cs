@@ -23,7 +23,7 @@ namespace ParcelPlan.PredictEngine.Service.Consumers
         {
             var _log = new Log
             {
-                Controller = "ModelEngine.Service.Consumers.RateResultCreatedConsumer",
+                Controller = "ModelEngine.Service.Consumers.PredictEngineRateResultCreatedConsumer",
                 Level = level.ToString(),
                 Message = message
             };
