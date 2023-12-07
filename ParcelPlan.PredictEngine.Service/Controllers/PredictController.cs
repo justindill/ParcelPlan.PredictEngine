@@ -16,17 +16,17 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
         private readonly IConfiguration configuration;
         private readonly IRepository<Log> logRepository;
         private readonly IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient;
-        private readonly IPublishEndpoint publishEndpoint;
+        private readonly IBus iBus;
         private readonly IOptions<ApiBehaviorOptions> apiBehaviorOptions;
 
         public PredictController(IConfiguration configuration, IRepository<Log> logRepository, 
-            IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient, IPublishEndpoint publishEndpoint,
-            IOptions<ApiBehaviorOptions> apiBehaviorOptions)
+            IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient, 
+            IBus iBus, IOptions<ApiBehaviorOptions> apiBehaviorOptions)
         {
             this.configuration = configuration;
             this.logRepository = logRepository;
             this.rateEngineRequestClient = rateEngineRequestClient;
-            this.publishEndpoint = publishEndpoint;
+            this.iBus = iBus;
             this.apiBehaviorOptions = apiBehaviorOptions;         
         }
 
@@ -135,6 +135,8 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 predictionResult.Detail.EstimatedCost = rateResult.TotalCost;
 
                 predictionResult.Detail.EstimatedTransitDays = rateResult.Commit.TransitDays;
+
+                await iBus.Publish(rateResult.AsDto());
             }
             else
             {
