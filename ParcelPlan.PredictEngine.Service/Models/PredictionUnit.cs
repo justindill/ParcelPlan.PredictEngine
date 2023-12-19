@@ -19,16 +19,18 @@ namespace ParcelPlan.PredictEngine.Service.Models
         [LoadColumn(6)]
         public string RatedWeightUOM { get; set; }
         [LoadColumn(7)]
-        public string CommitDeliveryDay { get; set; }
+        public string ShipDay { get; set; }
         [LoadColumn(8)]
-        public string CommitDeliveryDate { get; set; }
+        public string CommitDeliveryDay { get; set; }
         [LoadColumn(9)]
-        public float CommitTransitDays { get; set; }
+        public string CommitDeliveryDate { get; set; }
         [LoadColumn(10)]
-        public string Residential { get; set; }
+        public float CommitTransitDays { get; set; }
         [LoadColumn(11)]
-        public string SignatureRequired { get; set; }
+        public string Residential { get; set; }
         [LoadColumn(12)]
+        public string SignatureRequired { get; set; }
+        [LoadColumn(13)]
         public string AdultSignatureRequired { get; set; }
 
         public static PredictionUnit FromCsv(string csvLine)
@@ -42,12 +44,13 @@ namespace ParcelPlan.PredictEngine.Service.Models
             predictionUnit.TotalCost = float.Parse(values[4]);
             predictionUnit.RatedWeight = float.Parse(values[5]);
             predictionUnit.RatedWeightUOM = values[6];
-            predictionUnit.CommitDeliveryDay = values[7];
-            predictionUnit.CommitDeliveryDate = values[8];
-            predictionUnit.CommitTransitDays = float.Parse(values[9]);
-            predictionUnit.Residential = values[10];
-            predictionUnit.SignatureRequired = values[11];
-            predictionUnit.AdultSignatureRequired = values[12];
+            predictionUnit.ShipDay = values[7];
+            predictionUnit.CommitDeliveryDay = values[8];
+            predictionUnit.CommitDeliveryDate = values[9];
+            predictionUnit.CommitTransitDays = float.Parse(values[10]);
+            predictionUnit.Residential = values[11];
+            predictionUnit.SignatureRequired = values[12];
+            predictionUnit.AdultSignatureRequired = values[13];
 
             return predictionUnit;
         }

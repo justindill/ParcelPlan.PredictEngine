@@ -235,6 +235,8 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
             predictRequest.RatedWeight = ratedWeight;
 
+            predictRequest.ShipDay = predictRequestDto.ShipDate.ToString("ddd").ToUpper();
+
             return predictRequest;
         }
 
