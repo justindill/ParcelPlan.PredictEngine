@@ -58,7 +58,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 return BadRequest(predictResult);
             }
 
-            predictRequest.PostalCode = float.Parse(predictRequest.PostalCode.ToString().Substring(0, 3));
+            predictRequest.PostalCode = predictRequest.PostalCode.ToString().Substring(0, 3);
 
 
             var context = new MLContext();
@@ -220,7 +220,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             var predictRequest = new PredictionUnit
             {
                 RateGroup = rateGroup,
-                PostalCode = float.Parse(predictRequestDto.Receiver.Address.PostalCode),
+                PostalCode = predictRequestDto.Receiver.Address.PostalCode,
                 Residential = predictRequestDto.Receiver.Address.Residential.ToString()
             };
 

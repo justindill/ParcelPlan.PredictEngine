@@ -11,7 +11,7 @@ namespace ParcelPlan.PredictEngine.Service.Models
         [LoadColumn(2)]
         public string CarrierServiceName { get; set; }
         [LoadColumn(3)]
-        public float PostalCode { get; set; }
+        public string PostalCode { get; set; }
         [LoadColumn(4)]
         public float TotalCost { get; set; }
         [LoadColumn(5)]
@@ -40,7 +40,7 @@ namespace ParcelPlan.PredictEngine.Service.Models
             predictionUnit.Id = values[0];
             predictionUnit.RateGroup = values[1];
             predictionUnit.CarrierServiceName = values[2];
-            predictionUnit.PostalCode = float.Parse(values[3]);
+            predictionUnit.PostalCode = values[3];
             predictionUnit.TotalCost = float.Parse(values[4]);
             predictionUnit.RatedWeight = float.Parse(values[5]);
             predictionUnit.RatedWeightUOM = values[6];
