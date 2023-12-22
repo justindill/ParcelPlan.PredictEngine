@@ -27,7 +27,10 @@ namespace ParcelPlan.PredictEngine.Service
         {
             [Required] public string City { get; set; }
             [Required] public string State { get; set; }
-            [Required] public string PostalCode { get; set; }
+            [Required]
+            [StringLength(5, ErrorMessage = "Please provide a valid 5-digit postal code.", MinimumLength = 5)]
+            [RegularExpression(@"^[^\p{P}\p{Sm}]*$", ErrorMessage = "Please provide a valid 5-digit postal code.")]
+            public string PostalCode { get; set; }
             [Required] public string CountryCode { get; set; }
             public bool Residential { get; set; }
         }
@@ -74,21 +77,6 @@ namespace ParcelPlan.PredictEngine.Service
         {
             public decimal EstimatedCost { get; set; }
             public int EstimatedTransitDays { get; set; }
-        }
-
-        public class PredictionUnitDto
-        {
-            public Guid Id { get; set; }
-            public string RateGroup { get; set; }
-            public string CarrierServiceName { get; set; }
-            public string PostalCode { get; set; }
-            public decimal TotalCost { get; set; }
-            public decimal RatedWeight { get; set; }
-            public string RatedWeightUOM { get; set; }
-            public Commit Commit { get; set; } = new();
-            public bool Residential { get; set; }
-            public bool SignatureRequired { get; set; }
-            public bool AdultSignatureRequired { get; set; }
         }
 
         public class Commit
