@@ -7,12 +7,14 @@ namespace ParcelPlan.PredictEngine.Service
         public class PredictRequestDto
         {
             [Required] public string RateGroup { get; set; }
-            [Required] public DateTime ShipDate { get; set; }
-            public DateTime CommitmentDate { get; set; }
+            [Required][DataType(DataType.Date)] public DateTime ShipDate { get; set; }
+            [DataType(DataType.Date)] public DateTime CommitmentDate { get; set; }
             [Required] public string Shipper { get; set; }
             [Required] public Receiver Receiver { get; set; } = new();
-            [Required] public List<string> RateType { get; set; } = new();
-            [Required] public List<Package> Packages { get; set; } = new();
+            [Required, MinLength(1, ErrorMessage = "The field RateType must be a string or array type with a minimum length of '1'.")]
+            public List<string> RateType { get; set; } = new();
+            [Required, MinLength(1, ErrorMessage = "The field Packages must be an array of packages with a minimum length of '1'.")]
+            public List<Package> Packages { get; set; } = new();
             public bool EstimateCost { get; set; } = false;
             public bool EstimateTransitDays { get; set; } = false;
         }

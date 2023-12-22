@@ -244,34 +244,34 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
         {
             var rateEngineRequest = new RateEngineRequest
             {
-                RateGroup = predictRequestDto.RateGroup,
-                ShipDate = predictRequestDto.ShipDate,
-                CommitmentDate = predictRequestDto.CommitmentDate,
-                Shipper = predictRequestDto.Shipper,
+                RateGroup = predictRequestDto.RateGroup.Trim(),
+                ShipDate = Convert.ToDateTime(predictRequestDto.ShipDate.ToString().Trim()),
+                CommitmentDate = Convert.ToDateTime(predictRequestDto.CommitmentDate.ToString().Trim()),
+                Shipper = predictRequestDto.Shipper.Trim(),
                 RateType = predictRequestDto.RateType
             };
 
-            rateEngineRequest.Receiver.Address.City = predictRequestDto.Receiver.Address.City;
-            rateEngineRequest.Receiver.Address.State = predictRequestDto.Receiver.Address.State;
-            rateEngineRequest.Receiver.Address.PostalCode = predictRequestDto.Receiver.Address.PostalCode;
-            rateEngineRequest.Receiver.Address.CountryCode = predictRequestDto.Receiver.Address.CountryCode;
+            rateEngineRequest.Receiver.Address.City = predictRequestDto.Receiver.Address.City.Trim();
+            rateEngineRequest.Receiver.Address.State = predictRequestDto.Receiver.Address.State.Trim();
+            rateEngineRequest.Receiver.Address.PostalCode = predictRequestDto.Receiver.Address.PostalCode.Trim();
+            rateEngineRequest.Receiver.Address.CountryCode = predictRequestDto.Receiver.Address.CountryCode.Trim();
             rateEngineRequest.Receiver.Address.Residential = predictRequestDto.Receiver.Address.Residential;
 
-            rateEngineRequest.Receiver.Contact.Name = predictRequestDto.Receiver.Contact.Name;
-            rateEngineRequest.Receiver.Contact.Email = predictRequestDto.Receiver.Contact.Email;
-            rateEngineRequest.Receiver.Contact.Company = predictRequestDto.Receiver.Contact.Company;
-            rateEngineRequest.Receiver.Contact.Phone = predictRequestDto.Receiver.Contact.Phone;
+            rateEngineRequest.Receiver.Contact.Name = predictRequestDto.Receiver.Contact.Name.Trim();
+            rateEngineRequest.Receiver.Contact.Email = predictRequestDto.Receiver.Contact.Email.Trim();
+            rateEngineRequest.Receiver.Contact.Company = predictRequestDto.Receiver.Contact.Company.Trim();
+            rateEngineRequest.Receiver.Contact.Phone = predictRequestDto.Receiver.Contact.Phone.Trim();
 
             foreach (var predictRequestPackage in predictRequestDto.Packages)
             {
                 var package = new Common.MassTransit.Contracts.Package();
 
-                package.Dimensions.UOM = predictRequestPackage.Dimensions.UOM;
+                package.Dimensions.UOM = predictRequestPackage.Dimensions.UOM.Trim();
                 package.Dimensions.Length = predictRequestPackage.Dimensions.Length;
                 package.Dimensions.Width = predictRequestPackage.Dimensions.Width;
                 package.Dimensions.Height = predictRequestPackage.Dimensions.Height;
 
-                package.Weight.UOM = predictRequestPackage.Weight.UOM;
+                package.Weight.UOM = predictRequestPackage.Weight.UOM.Trim();
                 package.Weight.Value = predictRequestPackage.Weight.Value;
 
                 package.SignatureRequired = predictRequestPackage.SignatureRequired;
