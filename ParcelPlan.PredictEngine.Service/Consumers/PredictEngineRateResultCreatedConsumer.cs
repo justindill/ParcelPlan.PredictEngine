@@ -1,7 +1,6 @@
 ﻿using MassTransit;
 using ParcelPlan.Common;
 using ParcelPlan.Common.MassTransit.Contracts;
-using ParcelPlan.PredictEngine.Service.Entities;
 
 namespace ParcelPlan.PredictEngine.Service.Consumers
 {
