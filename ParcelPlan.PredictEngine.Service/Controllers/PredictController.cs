@@ -245,7 +245,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             var rateEngineRequest = new RateEngineRequest
             {
                 RateGroup = predictRequestDto.RateGroup.Trim(),
-                ShipDate = Convert.ToDateTime(predictRequestDto.ShipDate.ToString().Trim()),
+                ShipDate = predictRequestDto.ShipDate.ToString().Trim(),
                 CommitmentDate = Convert.ToDateTime(predictRequestDto.CommitmentDate.ToString().Trim()),
                 Shipper = predictRequestDto.Shipper.Trim(),
                 RateType = predictRequestDto.RateType
