@@ -19,18 +19,20 @@ namespace ParcelPlan.PredictEngine.Service.Models
         [LoadColumn(6)]
         public string RatedWeightUOM { get; set; }
         [LoadColumn(7)]
-        public string ShipDay { get; set; }
+        public string ShipDate { get; set; }
         [LoadColumn(8)]
-        public string CommitDeliveryDay { get; set; }
+        public string ShipDay { get; set; }
         [LoadColumn(9)]
-        public string CommitDeliveryDate { get; set; }
+        public string CommitDeliveryDay { get; set; }
         [LoadColumn(10)]
-        public float CommitTransitDays { get; set; }
+        public string CommitDeliveryDate { get; set; }
         [LoadColumn(11)]
-        public string Residential { get; set; }
+        public float CommitTransitDays { get; set; }
         [LoadColumn(12)]
-        public string SignatureRequired { get; set; }
+        public string Residential { get; set; }
         [LoadColumn(13)]
+        public string SignatureRequired { get; set; }
+        [LoadColumn(14)]
         public string AdultSignatureRequired { get; set; }
 
         public static PredictionUnit FromCsv(string csvLine)
@@ -44,13 +46,14 @@ namespace ParcelPlan.PredictEngine.Service.Models
             predictionUnit.TotalCost = float.Parse(values[4]);
             predictionUnit.RatedWeight = float.Parse(values[5]);
             predictionUnit.RatedWeightUOM = values[6];
-            predictionUnit.ShipDay = values[7];
-            predictionUnit.CommitDeliveryDay = values[8];
-            predictionUnit.CommitDeliveryDate = values[9];
-            predictionUnit.CommitTransitDays = float.Parse(values[10]);
-            predictionUnit.Residential = values[11];
-            predictionUnit.SignatureRequired = values[12];
-            predictionUnit.AdultSignatureRequired = values[13];
+            predictionUnit.ShipDate = values[7];
+            predictionUnit.ShipDay = values[8];
+            predictionUnit.CommitDeliveryDay = values[9];
+            predictionUnit.CommitDeliveryDate = values[10];
+            predictionUnit.CommitTransitDays = float.Parse(values[11]);
+            predictionUnit.Residential = values[12];
+            predictionUnit.SignatureRequired = values[13];
+            predictionUnit.AdultSignatureRequired = values[14];
 
             return predictionUnit;
         }
