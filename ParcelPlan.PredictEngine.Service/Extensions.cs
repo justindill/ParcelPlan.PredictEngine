@@ -16,6 +16,7 @@ namespace ParcelPlan.PredictEngine.Service
                 RatedWeightUOM = predictEngineRateResultCreated.RatedWeightUOM,
                 ShipDate = predictEngineRateResultCreated.ShipDate,
                 ShipDay = predictEngineRateResultCreated.ShipDay,
+                CommitmentDate = predictEngineRateResultCreated.CommitmentDate,
                 Residential = predictEngineRateResultCreated.Residential,
                 SignatureRequired = predictEngineRateResultCreated.SignatureRequired,
                 AdultSignatureRequired = predictEngineRateResultCreated.AdultSignatureRequired

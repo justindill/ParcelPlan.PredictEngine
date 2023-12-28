@@ -69,10 +69,17 @@ namespace ParcelPlan.PredictEngine.Service
 
         public class PredictResultDto
         {
+            public PredictResultStatus Status { get; set; } = new();
             public string PredictedService { get; set; }
             public string Confidence { get; set; }
             public bool CarrierRated { get; set; }
             public Detail Detail { get; set; } = new();
+        }
+
+        public class PredictResultStatus
+        {
+            public int Code { get; set; }
+            public string Description { get; set; }
         }
 
         public class Detail

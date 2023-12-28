@@ -23,16 +23,18 @@ namespace ParcelPlan.PredictEngine.Service.Models
         [LoadColumn(8)]
         public string ShipDay { get; set; }
         [LoadColumn(9)]
-        public string CommitDeliveryDay { get; set; }
+        public string CommitmentDate { get; set; }
         [LoadColumn(10)]
-        public string CommitDeliveryDate { get; set; }
+        public string CommitDeliveryDay { get; set; }
         [LoadColumn(11)]
-        public float CommitTransitDays { get; set; }
+        public string CommitDeliveryDate { get; set; }
         [LoadColumn(12)]
-        public string Residential { get; set; }
+        public float CommitTransitDays { get; set; }
         [LoadColumn(13)]
-        public string SignatureRequired { get; set; }
+        public string Residential { get; set; }
         [LoadColumn(14)]
+        public string SignatureRequired { get; set; }
+        [LoadColumn(15)]
         public string AdultSignatureRequired { get; set; }
 
         public static PredictionUnit FromCsv(string csvLine)
@@ -48,12 +50,13 @@ namespace ParcelPlan.PredictEngine.Service.Models
             predictionUnit.RatedWeightUOM = values[6];
             predictionUnit.ShipDate = values[7];
             predictionUnit.ShipDay = values[8];
-            predictionUnit.CommitDeliveryDay = values[9];
-            predictionUnit.CommitDeliveryDate = values[10];
-            predictionUnit.CommitTransitDays = float.Parse(values[11]);
-            predictionUnit.Residential = values[12];
-            predictionUnit.SignatureRequired = values[13];
-            predictionUnit.AdultSignatureRequired = values[14];
+            predictionUnit.CommitmentDate = values[9];
+            predictionUnit.CommitDeliveryDay = values[10];
+            predictionUnit.CommitDeliveryDate = values[11];
+            predictionUnit.CommitTransitDays = float.Parse(values[12]);
+            predictionUnit.Residential = values[13];
+            predictionUnit.SignatureRequired = values[14];
+            predictionUnit.AdultSignatureRequired = values[15];
 
             return predictionUnit;
         }
