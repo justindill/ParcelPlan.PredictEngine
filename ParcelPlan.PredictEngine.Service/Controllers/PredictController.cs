@@ -115,9 +115,9 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
                 var entropy = -prediction.Score.Sum(p => p * Math.Log(p));
 
-                //confidence = 100 - (entropy * 100);
+                confidence = 100 - (entropy * 100);
 
-                confidence = prediction.Score.Max() * 100;
+                // confidence = prediction.Score.Max() * 100;
 
                 predictionResult.Confidence = $"{(confidence).ToString("0.00")}%";
             }
