@@ -5,8 +5,7 @@ using ParcelPlan.Common.Settings;
 using ParcelPlan.PredictEngine.Service.Controllers;
 using MassTransit;
 using System.Reflection;
-using ParcelPlan.PredictEngine.Service.Consumers;
-using ParcelPlan.Common.MassTransit.Contracts;
+using ParcelPlan.PredictEngine.Service.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 var serviceSettings = new ServiceSettings();
@@ -20,6 +19,7 @@ builder.Services.AddSwaggerGen();
 serviceSettings = Configuration.GetSection(nameof(ServiceSettings)).Get<ServiceSettings>();
 
 builder.Services.AddMongo()
+                .AddMongoRepository<AS_LocaleDataEntity>("as_locale")
                 .AddMongoRepository<Log>("log");
 //.AddMassTransitWithRabbitMq();
 

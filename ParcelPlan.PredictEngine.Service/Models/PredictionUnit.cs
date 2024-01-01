@@ -31,10 +31,18 @@ namespace ParcelPlan.PredictEngine.Service.Models
         [LoadColumn(12)]
         public float CommitTransitDays { get; set; }
         [LoadColumn(13)]
-        public string Residential { get; set; }
+        public string AreaSurchargesNone { get; set; }
         [LoadColumn(14)]
-        public string SignatureRequired { get; set; }
+        public string AreaSurchargesDelivery { get; set; }
         [LoadColumn(15)]
+        public string AreaSurchargesExtended { get; set; }
+        [LoadColumn(16)]
+        public string AreaSurchargesRemote { get; set; }
+        [LoadColumn(17)]
+        public string Residential { get; set; }
+        [LoadColumn(18)]
+        public string SignatureRequired { get; set; }
+        [LoadColumn(19)]
         public string AdultSignatureRequired { get; set; }
 
         public static PredictionUnit FromCsv(string csvLine)
@@ -54,9 +62,13 @@ namespace ParcelPlan.PredictEngine.Service.Models
             predictionUnit.CommitDeliveryDay = values[10];
             predictionUnit.CommitDeliveryDate = values[11];
             predictionUnit.CommitTransitDays = float.Parse(values[12]);
-            predictionUnit.Residential = values[13];
-            predictionUnit.SignatureRequired = values[14];
-            predictionUnit.AdultSignatureRequired = values[15];
+            predictionUnit.AreaSurchargesNone = values[13];
+            predictionUnit.AreaSurchargesNone = values[14];
+            predictionUnit.AreaSurchargesNone = values[15];
+            predictionUnit.AreaSurchargesNone = values[16];
+            predictionUnit.Residential = values[17];
+            predictionUnit.SignatureRequired = values[18];
+            predictionUnit.AdultSignatureRequired = values[19];
 
             return predictionUnit;
         }

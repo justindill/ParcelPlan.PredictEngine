@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.ML;
 using ParcelPlan.Common;
 using ParcelPlan.Common.MassTransit.Contracts;
+using ParcelPlan.PredictEngine.Service.Entities;
 using ParcelPlan.PredictEngine.Service.Models;
 using static ParcelPlan.PredictEngine.Service.Dtos;
 
@@ -14,16 +15,18 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
     public class PredictController : ControllerBase
     {
         private readonly IConfiguration configuration;
+        private readonly IRepository<AS_LocaleDataEntity> as_localeDataRepository;
         private readonly IRepository<Log> logRepository;
         private readonly IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient;
         private readonly IBus iBus;
         private readonly IOptions<ApiBehaviorOptions> apiBehaviorOptions;
 
-        public PredictController(IConfiguration configuration, IRepository<Log> logRepository, 
-            IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient, 
+        public PredictController(IConfiguration configuration, IRepository<AS_LocaleDataEntity> as_localeDataRepository, 
+            IRepository<Log> logRepository, IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient, 
             IBus iBus, IOptions<ApiBehaviorOptions> apiBehaviorOptions)
         {
             this.configuration = configuration;
+            this.as_localeDataRepository = as_localeDataRepository;
             this.logRepository = logRepository;
             this.rateEngineRequestClient = rateEngineRequestClient;
             this.iBus = iBus;
@@ -45,7 +48,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 return BadRequest(predictResult);
             }
 
-            var predictRequest = CreatePredictRequestObject(predictRequestDto, predictRequestDto.RateGroup);
+            var predictRequest = await CreatePredictRequestObjectAsync(predictRequestDto, predictRequestDto.RateGroup);
 
             if (predictRequest == null)
             {
@@ -229,7 +232,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             return Ok(predictionResult);
         }
 
-        public static PredictionUnit CreatePredictRequestObject(PredictRequestDto predictRequestDto, string rateGroup)
+        public async Task<PredictionUnit> CreatePredictRequestObjectAsync(PredictRequestDto predictRequestDto, string rateGroup)
         {
             var predictRequest = new PredictionUnit
             {
@@ -250,6 +253,58 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             predictRequest.RatedWeight = ratedWeight;
 
             predictRequest.ShipDay = predictRequestDto.ShipDate.ToString("ddd").ToUpper();
+
+
+            var as_LocaleEntity = (await as_localeDataRepository.GetAllAsync()).ToList();
+
+            var as_locale = as_LocaleEntity.Where(x => x.PostalCode.Equals(predictRequest.PostalCode)).FirstOrDefault();
+
+            var as_ChargeCode = AreaSurchargeChargeCodes.NONE;
+
+            if (as_locale == null)
+            {
+                predictRequest.AreaSurchargesNone = "true";
+                predictRequest.AreaSurchargesDelivery = "false";
+                predictRequest.AreaSurchargesExtended = "false";
+                predictRequest.AreaSurchargesRemote = "false";
+            }
+            else
+            {
+                as_ChargeCode = Enum.TryParse(as_locale.ChargeCode, out as_ChargeCode)
+                    ? as_ChargeCode
+                    : AreaSurchargeChargeCodes.NONE;
+
+                switch (as_ChargeCode)
+                {
+                    case AreaSurchargeChargeCodes.DAS:
+                        predictRequest.AreaSurchargesNone = "false";
+                        predictRequest.AreaSurchargesDelivery = "true";
+                        predictRequest.AreaSurchargesExtended = "false";
+                        predictRequest.AreaSurchargesRemote = "false";
+                        break;
+
+                    case AreaSurchargeChargeCodes.EDAS:
+                        predictRequest.AreaSurchargesNone = "false";
+                        predictRequest.AreaSurchargesDelivery = "false";
+                        predictRequest.AreaSurchargesExtended = "true";
+                        predictRequest.AreaSurchargesRemote = "false";
+                        break;
+
+                    case AreaSurchargeChargeCodes.RAS:
+                        predictRequest.AreaSurchargesNone = "false";
+                        predictRequest.AreaSurchargesDelivery = "false";
+                        predictRequest.AreaSurchargesExtended = "false";
+                        predictRequest.AreaSurchargesRemote = "true";
+                        break;
+
+                    default:
+                        predictRequest.AreaSurchargesNone = "true";
+                        predictRequest.AreaSurchargesDelivery = "false";
+                        predictRequest.AreaSurchargesExtended = "false";
+                        predictRequest.AreaSurchargesRemote = "false";
+                        break;
+                }
+            }
 
             return predictRequest;
         }
