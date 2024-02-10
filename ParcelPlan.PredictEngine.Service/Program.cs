@@ -6,6 +6,7 @@ using ParcelPlan.PredictEngine.Service.Controllers;
 using MassTransit;
 using System.Reflection;
 using ParcelPlan.PredictEngine.Service.Entities;
+using ParcelPlan.PredictEngine.Service.Consumers;
 
 var builder = WebApplication.CreateBuilder(args);
 var serviceSettings = new ServiceSettings();
@@ -19,7 +20,9 @@ builder.Services.AddSwaggerGen();
 serviceSettings = Configuration.GetSection(nameof(ServiceSettings)).Get<ServiceSettings>();
 
 builder.Services.AddMongo()
+                .AddMongoRepository<LocaleDataEntity>("locale")
                 .AddMongoRepository<AS_LocaleDataEntity>("as_locale")
+                .AddMongoRepository<SpecialLocaleEntity>("special_locale")
                 .AddMongoRepository<Log>("log");
 //.AddMassTransitWithRabbitMq();
 
@@ -27,7 +30,7 @@ builder.Services.AddMassTransit(configure =>
 {
     var entryAssembly = Assembly.GetExecutingAssembly();
 
-    //configure.AddConsumers(entryAssembly);
+    configure.AddConsumers(entryAssembly);
 
     configure.UsingRabbitMq((context, configurator) =>
     {
@@ -36,6 +39,13 @@ builder.Services.AddMassTransit(configure =>
         var rabbitMQSettings = configuration.GetSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>();
 
         configurator.Host(rabbitMQSettings.Host);
+
+        configurator.ReceiveEndpoint("predict-engine-request-created", e =>
+        {
+            e.Durable = false;
+            e.ConfigureConsumer<PredictEngineRequestCreatedConsumer>(context);
+            e.PrefetchCount = 32;
+        });
 
         configurator.ConfigureEndpoints(context, new KebabCaseEndpointNameFormatter(serviceSettings.ServiceName, false));
 

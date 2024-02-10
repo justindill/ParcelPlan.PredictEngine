@@ -14,19 +14,27 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
     [Route("predict")]
     public class PredictController : ControllerBase
     {
+        private readonly HttpClient predictEngineClient;
         private readonly IConfiguration configuration;
+        private readonly IRepository<LocaleDataEntity> localeRepository;
         private readonly IRepository<AS_LocaleDataEntity> as_localeDataRepository;
+        private readonly IRepository<SpecialLocaleEntity> specialLocaleRepository;
         private readonly IRepository<Log> logRepository;
         private readonly IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient;
         private readonly IBus iBus;
         private readonly IOptions<ApiBehaviorOptions> apiBehaviorOptions;
 
-        public PredictController(IConfiguration configuration, IRepository<AS_LocaleDataEntity> as_localeDataRepository, 
-            IRepository<Log> logRepository, IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient, 
+        public PredictController(HttpClient predictEngineClient, IConfiguration configuration,
+            IRepository<LocaleDataEntity> localeRepository, IRepository<AS_LocaleDataEntity> as_localeDataRepository, 
+            IRepository<SpecialLocaleEntity> specialLocaleRepository, IRepository<Log> logRepository, 
+            IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient, 
             IBus iBus, IOptions<ApiBehaviorOptions> apiBehaviorOptions)
         {
+            this.predictEngineClient = predictEngineClient;
             this.configuration = configuration;
+            this.localeRepository = localeRepository;
             this.as_localeDataRepository = as_localeDataRepository;
+            this.specialLocaleRepository = specialLocaleRepository;
             this.logRepository = logRepository;
             this.rateEngineRequestClient = rateEngineRequestClient;
             this.iBus = iBus;
@@ -125,13 +133,34 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 predictionResult.Confidence = $"{(confidence).ToString("0.00")}%";
             }
 
-            if (confidence < Convert.ToDouble(configuration.GetValue<string>("ConfidenceThreshold")))
+
+            var rateSpecialLocale = configuration.GetValue<bool>("RateSpecialLocale");
+
+            var isLocale = (await localeRepository
+                .GetAsync(x => x.PostalCode.Equals(predictRequestDto.Receiver.Address.PostalCode))) != null;
+
+            var isSpecialLocale = (await specialLocaleRepository
+                .GetAsync(x => x.SpecialPostalCode.PostalCode.Equals(predictRequestDto.Receiver.Address.PostalCode))) != null;
+
+            if ((confidence < Convert.ToDouble(configuration.GetValue<string>("ConfidenceThreshold")) && isLocale) 
+                || (isLocale && isSpecialLocale && rateSpecialLocale))
             {
                 var rateEngineRequest = CreateRateEngineRequestObject(predictRequestDto);
 
                 var rateEngineResponse = await rateEngineRequestClient.GetResponse<PredictEngineRateResultCreated>(new PredictEngineRateRequestCreated(rateEngineRequest));
 
                 var rateResult = rateEngineResponse.Message;
+
+                if (rateResult.CarrierServiceName == null)
+                {
+                    predictionResult.PredictedService = "NoService";
+                    predictionResult.Status.Code = 0;
+                    predictionResult.Status.Description = "No qualifying carrier service is available for this shipment.";
+                }
+                else
+                {
+                    predictionResult.PredictedService = rateResult.CarrierServiceName;
+                }
 
                 predictionResult.Confidence = "100%";
 
@@ -141,7 +170,10 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
                 predictionResult.Detail.EstimatedTransitDays = rateResult.Commit.TransitDays;
 
-                await iBus.Publish(rateResult.AsDto());
+                if (isLocale)
+                {
+                    await iBus.Publish(rateResult.AsDto());
+                }
             }
             else
             {
@@ -152,7 +184,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 var datasetFilePath = this.configuration.GetValue<string>("DatasetFiles:Path");
 
 
-                if (estimateCost || estimateTransitDays)
+                if ((estimateCost || estimateTransitDays) && isLocale)
                 {
                     if (!string.IsNullOrEmpty(datasetFilePath))
                     { 
@@ -222,6 +254,13 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 predictionResult.PredictedService = "None";
                 predictionResult.Status.Code = 0;
                 predictionResult.Status.Description = "No qualifying carrier service is available for this shipment.";
+            }
+            else if (!isLocale)
+            {
+                predictionResult.PredictedService = "None";
+                predictionResult.Status.Code = 0;
+                predictionResult.Confidence = "100";
+                predictionResult.Status.Description = "The receiver postal code is not a valid United States postal code.";
             }
             else
             {
