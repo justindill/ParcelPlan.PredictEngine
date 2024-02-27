@@ -2,7 +2,7 @@
 
 namespace ParcelPlan.PredictEngine.Service.Models
 {
-    public class PredictResult
+    public class PredictServiceResult
     {
         public string PredictedService { get; set; }
         public string Confidence { get; set; }

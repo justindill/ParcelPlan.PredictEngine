@@ -2,7 +2,7 @@
 
 namespace ParcelPlan.PredictEngine.Service.Models
 {
-    public class PredictionUnit
+    public class ServicePredictionUnit
     {
         [LoadColumn(0)]
         public string Id { get; set; }
@@ -47,10 +47,12 @@ namespace ParcelPlan.PredictEngine.Service.Models
         [LoadColumn(20)]
         public string AdultSignatureRequired { get; set; }
 
-        public static PredictionUnit FromCsv(string csvLine)
+        public static ServicePredictionUnit FromCsv(string csvLine)
         {
             string[] values = csvLine.Split(',');
-            PredictionUnit predictionUnit = new PredictionUnit();
+
+            ServicePredictionUnit predictionUnit = new ServicePredictionUnit();
+
             predictionUnit.Id = values[0];
             predictionUnit.RateGroup = values[1];
             predictionUnit.CarrierServiceName = values[2];

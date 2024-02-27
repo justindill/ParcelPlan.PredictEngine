@@ -4,9 +4,25 @@ namespace ParcelPlan.PredictEngine.Service
 {
     public class Dtos
     {
-        public class PredictRequestDto
+        public class PredictServiceRequestDto
         {
             [Required] public string RateGroup { get; set; }
+            [Required][DataType(DataType.Date)] public DateTime ShipDate { get; set; }
+            [DataType(DataType.Date)] public DateTime CommitmentDate { get; set; }
+            [Required] public string Shipper { get; set; }
+            [Required] public Receiver Receiver { get; set; } = new();
+            [Required, MinLength(1, ErrorMessage = "The field RateType must be a string or array type with a minimum length of '1'.")]
+            public List<string> RateType { get; set; } = new();
+            [Required, MinLength(1, ErrorMessage = "The field Packages must be an array of packages with a minimum length of '1'.")]
+            public List<Package> Packages { get; set; } = new();
+            public bool EstimateCost { get; set; } = false;
+            public bool EstimateTransitDays { get; set; } = false;
+        }
+
+        public class PredictCostRequestDto
+        {
+            [Required] public string RateGroup { get; set; }
+            [Required] public string CarrierServiceName { get; set; }
             [Required][DataType(DataType.Date)] public DateTime ShipDate { get; set; }
             [DataType(DataType.Date)] public DateTime CommitmentDate { get; set; }
             [Required] public string Shipper { get; set; }
@@ -67,13 +83,21 @@ namespace ParcelPlan.PredictEngine.Service
             [Required] public double Value { get; set; }
         }
 
-        public class PredictResultDto
+        public class PredictServiceResultDto
         {
             public PredictResultStatus Status { get; set; } = new();
             public string PredictedService { get; set; }
             public string Confidence { get; set; }
             public bool CarrierRated { get; set; }
             public Detail Detail { get; set; } = new();
+        }
+
+        public class PredictCostResultDto
+        {
+            public PredictResultStatus Status { get; set; } = new();
+            public float PredictedCost { get; set; }
+            // public string Confidence { get; set; }
+            // public bool CarrierRated { get; set; }
         }
 
         public class PredictResultStatus
@@ -85,7 +109,7 @@ namespace ParcelPlan.PredictEngine.Service
         public class Detail
         {
             public decimal EstimatedCost { get; set; }
-            public int EstimatedTransitDays { get; set; }
+            // public int EstimatedTransitDays { get; set; }
         }
 
         public class Commit

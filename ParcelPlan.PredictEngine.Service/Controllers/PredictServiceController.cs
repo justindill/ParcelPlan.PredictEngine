@@ -6,13 +6,14 @@ using ParcelPlan.Common;
 using ParcelPlan.Common.MassTransit.Contracts;
 using ParcelPlan.PredictEngine.Service.Entities;
 using ParcelPlan.PredictEngine.Service.Models;
+using static MassTransit.ValidationResultExtensions;
 using static ParcelPlan.PredictEngine.Service.Dtos;
 
 namespace ParcelPlan.PredictEngine.Service.Controllers
 {
     [ApiController]
-    [Route("predict")]
-    public class PredictController : ControllerBase
+    [Route("predict/service")]
+    public class PredictServiceController : ControllerBase
     {
         private readonly HttpClient predictEngineClient;
         private readonly IConfiguration configuration;
@@ -21,13 +22,14 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
         private readonly IRepository<SpecialLocaleEntity> specialLocaleRepository;
         private readonly IRepository<Log> logRepository;
         private readonly IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient;
+        private readonly PredictCostController predictorCostController;
         private readonly IBus iBus;
         private readonly IOptions<ApiBehaviorOptions> apiBehaviorOptions;
 
-        public PredictController(HttpClient predictEngineClient, IConfiguration configuration,
+        public PredictServiceController(HttpClient predictEngineClient, IConfiguration configuration,
             IRepository<LocaleDataEntity> localeRepository, IRepository<AS_LocaleDataEntity> as_localeDataRepository, 
             IRepository<SpecialLocaleEntity> specialLocaleRepository, IRepository<Log> logRepository, 
-            IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient, 
+            IRequestClient<PredictEngineRateRequestCreated> rateEngineRequestClient, PredictCostController predictorCostController, 
             IBus iBus, IOptions<ApiBehaviorOptions> apiBehaviorOptions)
         {
             this.predictEngineClient = predictEngineClient;
@@ -37,17 +39,18 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             this.specialLocaleRepository = specialLocaleRepository;
             this.logRepository = logRepository;
             this.rateEngineRequestClient = rateEngineRequestClient;
+            this.predictorCostController = predictorCostController;
             this.iBus = iBus;
             this.apiBehaviorOptions = apiBehaviorOptions;         
         }
 
         [HttpPost]
-        public async Task<ActionResult<PredictResultDto>> PostAsync(PredictRequestDto predictRequestDto)
+        public async Task<ActionResult<PredictServiceResultDto>> PostAsync(PredictServiceRequestDto predictServiceRequestDto)
         {
 
-            if (string.IsNullOrEmpty(predictRequestDto.RateGroup))
+            if (string.IsNullOrEmpty(predictServiceRequestDto.RateGroup))
             {
-                ModelState.AddModelError(nameof(PredictResultDto), $"Please provide a valid rate group in your request.");
+                ModelState.AddModelError(nameof(PredictServiceResultDto), $"Please provide a valid rate group in your request.");
 
                 await LogMessageAsync(Level.ERROR, "The prediction engine request was not valid (Bad Request).  Rate group missing.");
 
@@ -56,11 +59,11 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 return BadRequest(predictResult);
             }
 
-            var predictRequest = await CreatePredictRequestObjectAsync(predictRequestDto, predictRequestDto.RateGroup);
+            var predictRequest = await CreatePredictServiceRequestObjectAsync(predictServiceRequestDto, predictServiceRequestDto.RateGroup);
 
             if (predictRequest == null)
             {
-                ModelState.AddModelError(nameof(PredictionUnit), $"Please provide a valid request.");
+                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Please provide a valid request.");
 
                 await LogMessageAsync(Level.ERROR, "The prediction engine request was not valid (Bad Request).");
 
@@ -69,8 +72,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 return BadRequest(predictResult);
             }
 
-            predictRequest.PostalCode = predictRequest.PostalCode.ToString().Substring(0, 3);
-
+            predictRequest.PostalCodePrefix = predictRequest.PostalCode.ToString().Substring(0, 3);
 
             var context = new MLContext();
 
@@ -78,7 +80,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
             if (!Directory.Exists(modelFilePath))
             {
-                ModelState.AddModelError(nameof(PredictionUnit), $"Model file path could not be found: {modelFilePath}");
+                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model file path could not be found: {modelFilePath}");
 
                 await LogMessageAsync(Level.ERROR, $"Model file path could not be found: {modelFilePath}");
 
@@ -89,7 +91,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
             if (!System.IO.File.Exists($"{modelFilePath}{predictRequest.RateGroup}.zip"))
             {
-                ModelState.AddModelError(nameof(PredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
 
                 await LogMessageAsync(Level.ERROR, $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
 
@@ -102,7 +104,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
             if (trainedModel == null)
             {
-                ModelState.AddModelError(nameof(PredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
 
                 await LogMessageAsync(Level.ERROR, $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
 
@@ -111,12 +113,29 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 return BadRequest(predictResult);
             }
 
-            var predictEngine = context.Model.CreatePredictionEngine<PredictionUnit, PredictResult>(trainedModel);
+            PredictServiceResult prediction = new();
+
+            try
+            {
+                var predictEngine = context.Model.CreatePredictionEngine<ServicePredictionUnit, PredictServiceResult>(trainedModel);
+
+                prediction = predictEngine.Predict(predictRequest);
+            }
+            catch (InvalidOperationException)
+            {
+                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model Error:  Invalid service prediction model.  " +
+                    $"Please ensure that you are using a valid service prediction model.");
+
+                await LogMessageAsync(Level.ERROR, $"Model Error:  Invalid service prediction model.  " +
+                    $"Please ensure that you are using a valid service prediction model.");
+
+                var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+
+                return BadRequest(predictResult);
+            }
 
 
-            var prediction = predictEngine.Predict(predictRequest);
-
-            var predictionResult = new PredictResultDto();
+            var predictionResult = new PredictServiceResultDto();
 
             double confidence = 0;
 
@@ -137,15 +156,16 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             var rateSpecialLocale = configuration.GetValue<bool>("RateSpecialLocale");
 
             var isLocale = (await localeRepository
-                .GetAsync(x => x.PostalCode.Equals(predictRequestDto.Receiver.Address.PostalCode))) != null;
+                .GetAsync(x => x.PostalCode.Equals(predictServiceRequestDto.Receiver.Address.PostalCode))) != null;
 
             var isSpecialLocale = (await specialLocaleRepository
-                .GetAsync(x => x.SpecialPostalCode.PostalCode.Equals(predictRequestDto.Receiver.Address.PostalCode))) != null;
+                .GetAsync(x => x.SpecialPostalCode.PostalCode.Equals(predictServiceRequestDto.Receiver.Address.PostalCode))) != null;
+
 
             if ((confidence < Convert.ToDouble(configuration.GetValue<string>("ConfidenceThreshold")) && isLocale) 
                 || (isLocale && isSpecialLocale && rateSpecialLocale))
             {
-                var rateEngineRequest = CreateRateEngineRequestObject(predictRequestDto);
+                var rateEngineRequest = CreateRateEngineRequestObject(predictServiceRequestDto);
 
                 var rateEngineResponse = await rateEngineRequestClient.GetResponse<PredictEngineRateResultCreated>(new PredictEngineRateRequestCreated(rateEngineRequest));
 
@@ -168,7 +188,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
                 predictionResult.Detail.EstimatedCost = rateResult.TotalCost;
 
-                predictionResult.Detail.EstimatedTransitDays = rateResult.Commit.TransitDays;
+                // predictionResult.Detail.EstimatedTransitDays = rateResult.Commit.TransitDays;
 
                 if (isLocale)
                 {
@@ -177,74 +197,29 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             }
             else
             {
-                var estimateCost = predictRequestDto.EstimateCost == true ? true : false;
+                var estimateCost = predictServiceRequestDto.EstimateCost == true ? true : false;
 
-                var estimateTransitDays = predictRequestDto.EstimateTransitDays == true ? true : false;
+                var estimateTransitDays = predictServiceRequestDto.EstimateTransitDays == true ? true : false;
 
                 var datasetFilePath = this.configuration.GetValue<string>("DatasetFiles:Path");
 
 
-                if ((estimateCost || estimateTransitDays) && isLocale)
+                if ((estimateCost) && isLocale)
                 {
-                    if (!string.IsNullOrEmpty(datasetFilePath))
-                    { 
-                        if (!Directory.Exists(datasetFilePath))
+                    var predictCostRequestDto = CreatePredictCostRequestObject(predictServiceRequestDto, predictionResult.PredictedService);
+
+                    var predictCostResultResponse = predictorCostController.PostAsync(predictCostRequestDto).Result.Result;
+
+                    if (predictCostResultResponse is not null && predictCostResultResponse is OkObjectResult okObjectResult)
+                    {
+                        decimal predictedCost = 0;
+
+                        if (okObjectResult.Value is PredictCostResultDto predictCostResultDto)
                         {
-                            ModelState.AddModelError(nameof(PredictionUnit), $"Dataset file path could not be found: {datasetFilePath}");
-
-                            await LogMessageAsync(Level.ERROR, $"Dataset file path could not be found: {datasetFilePath}");
-
-                            var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
-
-                            return BadRequest(predictResult);
+                            predictedCost = Math.Round((decimal)predictCostResultDto.PredictedCost, 2);
                         }
 
-                        var files = from file in Directory.EnumerateFiles(datasetFilePath) select file;
-
-                        var trainingData = new List<PredictionUnit>();
-
-                        foreach (var file in files)
-                        {
-                            var filename = Path.GetFileName(file).Split('.')[0];
-
-                            if (filename == predictRequest.RateGroup)
-                            {
-                                trainingData = System.IO.File.ReadAllLines(file)
-                                    .Skip(1)
-                                    .Select(v => PredictionUnit.FromCsv(v))
-                                    .ToList();
-
-                                break;
-                            }
-                        }
-
-                        if (trainingData != null)
-                        {
-                            var closestMatch = new PredictionUnit();
-
-                            if (prediction != null)
-                            {
-                                closestMatch = trainingData.Where(td => td.CarrierServiceName == prediction.PredictedLabelString
-                                && td.PostalCode.ToString() == predictRequest.PostalCode.ToString().Substring(0, 3)
-                                && td.RatedWeight == Math.Ceiling(predictRequest.RatedWeight)).FirstOrDefault();
-                            }
-
-                            if (closestMatch != null)
-                            {
-                                predictionResult.Detail.EstimatedCost = estimateCost
-                                    ? Convert.ToDecimal(closestMatch.TotalCost)
-                                    : 0;
-
-                                predictionResult.Detail.EstimatedTransitDays = estimateTransitDays
-                                    ? Convert.ToInt32(closestMatch.CommitTransitDays)
-                                    : 0;
-                            }
-                        }
-                        else
-                        {
-                            await LogMessageAsync(Level.WARNING, 
-                                $"No training data found when attempting to estimate cost and transit days.  Rate Group: {predictRequest.RateGroup}");
-                        }
+                        predictionResult.Detail.EstimatedCost = Convert.ToDecimal(predictedCost);
                     }
                 }
             }
@@ -271,9 +246,9 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             return Ok(predictionResult);
         }
 
-        public async Task<PredictionUnit> CreatePredictRequestObjectAsync(PredictRequestDto predictRequestDto, string rateGroup)
+        public async Task<ServicePredictionUnit> CreatePredictServiceRequestObjectAsync(PredictServiceRequestDto predictRequestDto, string rateGroup)
         {
-            var predictRequest = new PredictionUnit
+            var predictRequest = new ServicePredictionUnit
             {
                 RateGroup = rateGroup,
                 PostalCode = predictRequestDto.Receiver.Address.PostalCode,
@@ -348,7 +323,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             return predictRequest;
         }
 
-        public static RateEngineRequest CreateRateEngineRequestObject(PredictRequestDto predictRequestDto)
+        public static RateEngineRequest CreateRateEngineRequestObject(PredictServiceRequestDto predictRequestDto)
         {
             var rateEngineRequest = new RateEngineRequest
             {
@@ -391,11 +366,55 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             return rateEngineRequest;
         }
 
+        public static PredictCostRequestDto CreatePredictCostRequestObject(PredictServiceRequestDto predictRequestDto, string carrierServiceName)
+        {
+            var predictCostRequestDto = new PredictCostRequestDto
+            {
+                RateGroup = $"{predictRequestDto.RateGroup.Trim()}_COST",
+                CarrierServiceName = carrierServiceName,
+                ShipDate = predictRequestDto.ShipDate,
+                CommitmentDate = Convert.ToDateTime(predictRequestDto.CommitmentDate.ToString().Trim()),
+                Shipper = predictRequestDto.Shipper.Trim(),
+                RateType = predictRequestDto.RateType
+            };
+
+            predictCostRequestDto.Receiver.Address.City = predictRequestDto.Receiver.Address.City.Trim();
+            predictCostRequestDto.Receiver.Address.State = predictRequestDto.Receiver.Address.State.Trim();
+            predictCostRequestDto.Receiver.Address.PostalCode = predictRequestDto.Receiver.Address.PostalCode.Trim();
+            predictCostRequestDto.Receiver.Address.CountryCode = predictRequestDto.Receiver.Address.CountryCode.Trim();
+            predictCostRequestDto.Receiver.Address.Residential = predictRequestDto.Receiver.Address.Residential;
+
+            predictCostRequestDto.Receiver.Contact.Name = predictRequestDto.Receiver.Contact.Name.Trim();
+            predictCostRequestDto.Receiver.Contact.Email = predictRequestDto.Receiver.Contact.Email.Trim();
+            predictCostRequestDto.Receiver.Contact.Company = predictRequestDto.Receiver.Contact.Company.Trim();
+            predictCostRequestDto.Receiver.Contact.Phone = predictRequestDto.Receiver.Contact.Phone.Trim();
+
+            foreach (var predictRequestPackage in predictRequestDto.Packages)
+            {
+                var package = new Dtos.Package();
+
+                package.Dimensions.UOM = predictRequestPackage.Dimensions.UOM.Trim();
+                package.Dimensions.Length = predictRequestPackage.Dimensions.Length;
+                package.Dimensions.Width = predictRequestPackage.Dimensions.Width;
+                package.Dimensions.Height = predictRequestPackage.Dimensions.Height;
+
+                package.Weight.UOM = predictRequestPackage.Weight.UOM.Trim();
+                package.Weight.Value = predictRequestPackage.Weight.Value;
+
+                package.SignatureRequired = predictRequestPackage.SignatureRequired;
+                package.AdultSignatureRequired = predictRequestPackage.AdultSignatureRequired;
+
+                predictCostRequestDto.Packages.Add(package);
+            }
+
+            return predictCostRequestDto;
+        }
+
         private async Task LogMessageAsync(Level level, string message)
         {
             var _log = new Log
             {
-                Controller = "PredictEngine.Service.Controllers.PredictController",
+                Controller = "PredictEngine.Service.Controllers.PredictServiceController",
                 Level = level.ToString(),
                 Message = message
             };

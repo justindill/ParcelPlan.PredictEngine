@@ -8,14 +8,14 @@ using static ParcelPlan.PredictEngine.Service.Dtos;
 
 namespace ParcelPlan.PredictEngine.Service.Consumers
 {
-    public class PredictEngineRequestCreatedConsumer : IConsumer<PredictEngineRequestCreated>
+    public class PredictServiceRequestCreatedConsumer : IConsumer<PredictEngineRequestCreated>
     {
-        private readonly PredictController predictController;
+        private readonly PredictServiceController predictServiceController;
         private readonly IRepository<Log> logRepository;
 
-        public PredictEngineRequestCreatedConsumer(PredictController predictController, IRepository<Log> logRepository)
+        public PredictServiceRequestCreatedConsumer(PredictServiceController predictServiceController, IRepository<Log> logRepository)
         {
-            this.predictController = predictController;
+            this.predictServiceController = predictServiceController;
             this.logRepository = logRepository;
         }
 
@@ -23,7 +23,7 @@ namespace ParcelPlan.PredictEngine.Service.Consumers
         {
             var predictRequest = context.Message.PredictEngineRequest;
 
-            var predictRequestDto = new PredictRequestDto()
+            var predictRequestDto = new PredictServiceRequestDto()
             {
                 RateGroup = predictRequest.RateGroup,
                 ShipDate = predictRequest.ShipDate,
@@ -63,11 +63,11 @@ namespace ParcelPlan.PredictEngine.Service.Consumers
                 predictRequestDto.Packages.Add(predictRequestPackage);
             }
 
-            var predictResultOkObject = predictController.PostAsync(predictRequestDto).Result.Result as OkObjectResult;
+            var predictResultOkObject = predictServiceController.PostAsync(predictRequestDto).Result.Result as OkObjectResult;
 
             if (predictResultOkObject != null && predictResultOkObject.Value != null)
             {
-                var predictResult = JsonConvert.SerializeObject(predictResultOkObject.Value as PredictResultDto, Formatting.Indented);
+                var predictResult = JsonConvert.SerializeObject(predictResultOkObject.Value as PredictServiceResultDto, Formatting.Indented);
 
                 var predictResultCreated = JsonConvert.DeserializeObject<PredictResultCreated>(predictResult);
 

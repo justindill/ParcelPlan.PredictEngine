@@ -40,10 +40,10 @@ builder.Services.AddMassTransit(configure =>
 
         configurator.Host(rabbitMQSettings.Host);
 
-        configurator.ReceiveEndpoint("predict-engine-request-created", e =>
+        configurator.ReceiveEndpoint("predict-service-request-created", e =>
         {
             e.Durable = false;
-            e.ConfigureConsumer<PredictEngineRequestCreatedConsumer>(context);
+            e.ConfigureConsumer<PredictServiceRequestCreatedConsumer>(context);
             e.PrefetchCount = 32;
         });
 
@@ -56,7 +56,9 @@ builder.Services.AddMassTransit(configure =>
     });
 });
 
-builder.Services.AddHttpClient<PredictController>();
+builder.Services.AddMvc().AddControllersAsServices();
+
+builder.Services.AddHttpClient<PredictServiceController>();
 
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
