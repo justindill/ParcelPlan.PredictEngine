@@ -76,37 +76,37 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
             var context = new MLContext();
 
-            var modelFilePath = this.configuration.GetValue<string>("ModelFiles:Path");
+            var serviceModelFilePath = this.configuration.GetValue<string>("ModelFiles:ServiceModelPath");
 
-            if (!Directory.Exists(modelFilePath))
+            if (!Directory.Exists(serviceModelFilePath))
             {
-                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model file path could not be found: {modelFilePath}");
+                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model file path could not be found: {serviceModelFilePath}");
 
-                await LogMessageAsync(Level.ERROR, $"Model file path could not be found: {modelFilePath}");
+                await LogMessageAsync(Level.ERROR, $"Model file path could not be found: {serviceModelFilePath}");
 
                 var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
 
                 return BadRequest(predictResult);
             }
 
-            if (!System.IO.File.Exists($"{modelFilePath}{predictRequest.RateGroup}.zip"))
+            if (!System.IO.File.Exists($"{serviceModelFilePath}{predictRequest.RateGroup}.zip"))
             {
-                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model file could not be found: {serviceModelFilePath}{predictRequest.RateGroup}.zip");
 
-                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {serviceModelFilePath}{predictRequest.RateGroup}.zip");
 
                 var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
 
                 return BadRequest(predictResult);
             }
 
-            var trainedModel = context.Model.Load($"{modelFilePath}{predictRequest.RateGroup}.zip", out DataViewSchema modelSchema);
+            var trainedModel = context.Model.Load($"{serviceModelFilePath}{predictRequest.RateGroup}.zip", out DataViewSchema modelSchema);
 
             if (trainedModel == null)
             {
-                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                ModelState.AddModelError(nameof(ServicePredictionUnit), $"Model file could not be found: {serviceModelFilePath}{predictRequest.RateGroup}.zip");
 
-                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {serviceModelFilePath}{predictRequest.RateGroup}.zip");
 
                 var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
 
@@ -201,10 +201,8 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
 
                 var estimateTransitDays = predictServiceRequestDto.EstimateTransitDays == true ? true : false;
 
-                var datasetFilePath = this.configuration.GetValue<string>("DatasetFiles:Path");
 
-
-                if ((estimateCost) && isLocale)
+                if ((estimateCost) && isLocale && predictionResult.PredictedService != "NoService")
                 {
                     var predictCostRequestDto = CreatePredictCostRequestObject(predictServiceRequestDto, predictionResult.PredictedService);
 
@@ -370,42 +368,23 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
         {
             var predictCostRequestDto = new PredictCostRequestDto
             {
-                RateGroup = $"{predictRequestDto.RateGroup.Trim()}_COST",
+                ModelFileName = $"{predictRequestDto.RateGroup.Trim()}_COST",
                 CarrierServiceName = carrierServiceName,
-                ShipDate = predictRequestDto.ShipDate,
-                CommitmentDate = Convert.ToDateTime(predictRequestDto.CommitmentDate.ToString().Trim()),
-                Shipper = predictRequestDto.Shipper.Trim(),
-                RateType = predictRequestDto.RateType
+                ShipDay = predictRequestDto.ShipDate.DayOfWeek.ToString().Substring(0, 3).ToUpper(),
+                PostalCode = predictRequestDto.Receiver.Address.PostalCode,
+                Residential = predictRequestDto.Receiver.Address.Residential
             };
 
-            predictCostRequestDto.Receiver.Address.City = predictRequestDto.Receiver.Address.City.Trim();
-            predictCostRequestDto.Receiver.Address.State = predictRequestDto.Receiver.Address.State.Trim();
-            predictCostRequestDto.Receiver.Address.PostalCode = predictRequestDto.Receiver.Address.PostalCode.Trim();
-            predictCostRequestDto.Receiver.Address.CountryCode = predictRequestDto.Receiver.Address.CountryCode.Trim();
-            predictCostRequestDto.Receiver.Address.Residential = predictRequestDto.Receiver.Address.Residential;
+            float ratedWeight = 0;
 
-            predictCostRequestDto.Receiver.Contact.Name = predictRequestDto.Receiver.Contact.Name.Trim();
-            predictCostRequestDto.Receiver.Contact.Email = predictRequestDto.Receiver.Contact.Email.Trim();
-            predictCostRequestDto.Receiver.Contact.Company = predictRequestDto.Receiver.Contact.Company.Trim();
-            predictCostRequestDto.Receiver.Contact.Phone = predictRequestDto.Receiver.Contact.Phone.Trim();
-
-            foreach (var predictRequestPackage in predictRequestDto.Packages)
+            foreach (var package in predictRequestDto.Packages)
             {
-                var package = new Dtos.Package();
-
-                package.Dimensions.UOM = predictRequestPackage.Dimensions.UOM.Trim();
-                package.Dimensions.Length = predictRequestPackage.Dimensions.Length;
-                package.Dimensions.Width = predictRequestPackage.Dimensions.Width;
-                package.Dimensions.Height = predictRequestPackage.Dimensions.Height;
-
-                package.Weight.UOM = predictRequestPackage.Weight.UOM.Trim();
-                package.Weight.Value = predictRequestPackage.Weight.Value;
-
-                package.SignatureRequired = predictRequestPackage.SignatureRequired;
-                package.AdultSignatureRequired = predictRequestPackage.AdultSignatureRequired;
-
-                predictCostRequestDto.Packages.Add(package);
+                ratedWeight += (float)package.Weight.Value;
+                predictCostRequestDto.SignatureRequired = package.SignatureRequired;
+                predictCostRequestDto.AdultSignatureRequired = package.AdultSignatureRequired;
             }
+
+            predictCostRequestDto.RatedWeight = ratedWeight;
 
             return predictCostRequestDto;
         }

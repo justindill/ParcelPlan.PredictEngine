@@ -17,6 +17,7 @@ namespace ParcelPlan.PredictEngine.Service
                 ShipDate = predictEngineRateResultCreated.ShipDate,
                 ShipDay = predictEngineRateResultCreated.ShipDay,
                 CommitmentDate = predictEngineRateResultCreated.CommitmentDate,
+                Results = predictEngineRateResultCreated.Results,
                 Residential = predictEngineRateResultCreated.Residential,
                 SignatureRequired = predictEngineRateResultCreated.SignatureRequired,
                 AdultSignatureRequired = predictEngineRateResultCreated.AdultSignatureRequired

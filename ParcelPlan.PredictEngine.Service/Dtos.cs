@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.ML.Data;
+using System.ComponentModel.DataAnnotations;
 
 namespace ParcelPlan.PredictEngine.Service
 {
@@ -21,18 +22,14 @@ namespace ParcelPlan.PredictEngine.Service
 
         public class PredictCostRequestDto
         {
-            [Required] public string RateGroup { get; set; }
+            [Required] public string ModelFileName { get; set; }
             [Required] public string CarrierServiceName { get; set; }
-            [Required][DataType(DataType.Date)] public DateTime ShipDate { get; set; }
-            [DataType(DataType.Date)] public DateTime CommitmentDate { get; set; }
-            [Required] public string Shipper { get; set; }
-            [Required] public Receiver Receiver { get; set; } = new();
-            [Required, MinLength(1, ErrorMessage = "The field RateType must be a string or array type with a minimum length of '1'.")]
-            public List<string> RateType { get; set; } = new();
-            [Required, MinLength(1, ErrorMessage = "The field Packages must be an array of packages with a minimum length of '1'.")]
-            public List<Package> Packages { get; set; } = new();
-            public bool EstimateCost { get; set; } = false;
-            public bool EstimateTransitDays { get; set; } = false;
+            [Required] public string ShipDay { get; set; }
+            [Required] public string PostalCode { get; set; }
+            [Required] public float RatedWeight { get; set; }         
+            public bool Residential { get; set; }
+            public bool SignatureRequired { get; set; }
+            public bool AdultSignatureRequired { get; set; }
         }
 
         public class Receiver

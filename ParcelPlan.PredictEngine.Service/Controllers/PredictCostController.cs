@@ -32,18 +32,7 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
         [HttpPost]
         public async Task<ActionResult<PredictCostResultDto>> PostAsync(PredictCostRequestDto predictCostRequestDto)
         {
-            if (string.IsNullOrEmpty(predictCostRequestDto.RateGroup))
-            {
-                ModelState.AddModelError(nameof(PredictCostResultDto), $"Please provide a valid rate group in your request.");
-
-                await LogMessageAsync(Level.ERROR, "The prediction engine request was not valid (Bad Request).  Rate group missing.");
-
-                var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
-
-                return BadRequest(predictResult);
-            }
-
-            var predictRequest = await CreatePredictCostRequestObjectAsync(predictCostRequestDto, predictCostRequestDto.RateGroup);
+            var predictRequest = await CreatePredictCostRequestObjectAsync(predictCostRequestDto);
 
             if (predictRequest == null)
             {
@@ -56,41 +45,39 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
                 return BadRequest(predictResult);
             }
 
-            predictRequest.PostalCodePrefix = predictRequest.PostalCode.ToString().Substring(0, 3);
-
             var context = new MLContext();
 
-            var modelFilePath = this.configuration.GetValue<string>("ModelFiles:Path");
+            var costModelFilePath = this.configuration.GetValue<string>("ModelFiles:CostModelPath");
 
-            if (!Directory.Exists(modelFilePath))
+            if (!Directory.Exists(costModelFilePath))
             {
-                ModelState.AddModelError(nameof(CostPredictionUnit), $"Model file path could not be found: {modelFilePath}");
+                ModelState.AddModelError(nameof(CostPredictionUnit), $"Model file path could not be found: {costModelFilePath}");
 
-                await LogMessageAsync(Level.ERROR, $"Model file path could not be found: {modelFilePath}");
+                await LogMessageAsync(Level.ERROR, $"Model file path could not be found: {costModelFilePath}");
 
                 var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
 
                 return BadRequest(predictResult);
             }
 
-            if (!System.IO.File.Exists($"{modelFilePath}{predictRequest.RateGroup}.zip"))
+            if (!System.IO.File.Exists($"{costModelFilePath}{predictCostRequestDto.ModelFileName}.zip"))
             {
-                ModelState.AddModelError(nameof(CostPredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                ModelState.AddModelError(nameof(CostPredictionUnit), $"Model file could not be found: {costModelFilePath}{predictCostRequestDto.ModelFileName}.zip");
 
-                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {costModelFilePath}{predictCostRequestDto.ModelFileName}.zip");
 
                 var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
 
                 return BadRequest(predictResult);
             }
 
-            var trainedModel = context.Model.Load($"{modelFilePath}{predictRequest.RateGroup}.zip", out DataViewSchema modelSchema);
+            var trainedModel = context.Model.Load($"{costModelFilePath}{predictCostRequestDto.ModelFileName}.zip", out DataViewSchema modelSchema);
 
             if (trainedModel == null)
             {
-                ModelState.AddModelError(nameof(CostPredictionUnit), $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                ModelState.AddModelError(nameof(CostPredictionUnit), $"Model file could not be found: {costModelFilePath}{predictCostRequestDto.ModelFileName}.zip");
 
-                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {modelFilePath}{predictRequest.RateGroup}.zip");
+                await LogMessageAsync(Level.ERROR, $"Model file could not be found: {costModelFilePath}{predictCostRequestDto.ModelFileName}.zip");
 
                 var predictResult = apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
 
@@ -137,30 +124,19 @@ namespace ParcelPlan.PredictEngine.Service.Controllers
             return Ok(predictionResult);
         }
 
-        public async Task<CostPredictionUnit> CreatePredictCostRequestObjectAsync(PredictCostRequestDto predictCostRequestDto, string rateGroup)
+        public async Task<CostPredictionUnit> CreatePredictCostRequestObjectAsync(PredictCostRequestDto predictCostRequestDto)
         {
             var predictRequest = new CostPredictionUnit
             {
-                RateGroup = rateGroup,
                 CarrierServiceName = predictCostRequestDto.CarrierServiceName,
-                PostalCodePrefix = predictCostRequestDto.Receiver.Address.PostalCode.Substring(0, 3),
-                PostalCode = predictCostRequestDto.Receiver.Address.PostalCode,
-                Residential = predictCostRequestDto.Receiver.Address.Residential.ToString()
+                ShipDay = predictCostRequestDto.ShipDay,
+                PostalCodePrefix = predictCostRequestDto.PostalCode.ToString().Trim().Substring(0, 3).ToUpper(),
+                PostalCode = predictCostRequestDto.PostalCode,
+                RatedWeight = predictCostRequestDto.RatedWeight,
+                Residential = predictCostRequestDto.Residential.ToString(),
+                SignatureRequired = predictCostRequestDto.SignatureRequired.ToString(),
+                AdultSignatureRequired = predictCostRequestDto.AdultSignatureRequired.ToString(),
             };
-
-            float ratedWeight = 0;
-
-            foreach (var package in predictCostRequestDto.Packages)
-            {
-                ratedWeight += (float)package.Weight.Value;
-                predictRequest.SignatureRequired = package.SignatureRequired.ToString();
-                predictRequest.AdultSignatureRequired = package.AdultSignatureRequired.ToString();
-            }
-
-            predictRequest.RatedWeight = ratedWeight;
-
-            predictRequest.ShipDay = predictCostRequestDto.ShipDate.ToString("ddd").ToUpper();
-
 
             var as_LocaleEntity = (await as_localeDataRepository.GetAllAsync()).ToList();
 

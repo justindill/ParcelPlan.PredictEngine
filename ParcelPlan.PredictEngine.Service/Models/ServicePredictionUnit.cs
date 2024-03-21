@@ -68,9 +68,9 @@ namespace ParcelPlan.PredictEngine.Service.Models
             predictionUnit.CommitDeliveryDate = values[12];
             predictionUnit.CommitTransitDays = float.Parse(values[13]);
             predictionUnit.AreaSurchargesNone = values[14];
-            predictionUnit.AreaSurchargesNone = values[15];
-            predictionUnit.AreaSurchargesNone = values[16];
-            predictionUnit.AreaSurchargesNone = values[17];
+            predictionUnit.AreaSurchargesDelivery = values[15];
+            predictionUnit.AreaSurchargesExtended = values[16];
+            predictionUnit.AreaSurchargesRemote = values[17];
             predictionUnit.Residential = values[18];
             predictionUnit.SignatureRequired = values[19];
             predictionUnit.AdultSignatureRequired = values[20];
